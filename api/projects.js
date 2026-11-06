@@ -65,6 +65,25 @@ export default async function handler(req, res) {
             const { id } = req.query;
             if (!id) return res.status(400).send(JSON.stringify({ error: "Missing ID" }));
             await sql`DELETE FROM projects WHERE id = ${id} AND user_id = ${userId}`;
+
+            // Remove this user's images that no remaining project references.
+            // Images younger than an hour are kept: they may belong to an
+            // edit that hasn't been saved to the server yet.
+            try {
+                await sql`
+                    DELETE FROM images i
+                    WHERE i.user_id = ${userId}
+                      AND i.created_at < NOW() - INTERVAL '1 hour'
+                      AND NOT EXISTS (
+                          SELECT 1 FROM projects p
+                          WHERE p.user_id = ${userId}
+                            AND strpos(p.cards::text, 'id=' || i.id) > 0
+                      )
+                `;
+            } catch (cleanupError) {
+                console.error("Image cleanup failed:", cleanupError);
+            }
+
             return res.status(200).send(JSON.stringify({ success: true }));
         }
 

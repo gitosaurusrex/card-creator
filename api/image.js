@@ -1,29 +1,38 @@
 import { sql } from '@vercel/postgres';
+import { detectImageType, decodeBase64Payload } from '../lib/image-types.js';
 
 export default async function handler(req, res) {
     try {
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+            return res.status(405).end();
+        }
+
         const { id } = req.query;
-        if (!id) {
+        if (typeof id !== 'string' || id.length === 0 || id.length > 64) {
             return res.status(400).end();
         }
 
         const { rows } = await sql`
-            SELECT data, content_type FROM images WHERE id = ${id}
+            SELECT data FROM images WHERE id = ${id}
         `;
 
         if (rows.length === 0) {
-            return res.status(404).json({ error: "Image not found" });
+            return res.status(404).end();
         }
 
-        const { data, content_type } = rows[0];
+        const buffer = decodeBase64Payload(rows[0].data);
 
-        // Format: data:image/png;base64,iVBOR...
-        // We need to extract the base64 part
-        const base64Data = data.includes('base64,') ? data.split('base64,')[1] : data;
-        const buffer = Buffer.from(base64Data, 'base64');
+        // Never trust the stored content_type: older uploads accepted any
+        // client-supplied type. Only serve bytes that are really an image.
+        const contentType = detectImageType(buffer);
+        if (!contentType) {
+            return res.status(404).end();
+        }
 
-        res.setHeader('Content-Type', content_type);
-        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+        res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
         return res.send(buffer);
 
     } catch (error) {
