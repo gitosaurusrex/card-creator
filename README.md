@@ -1,49 +1,75 @@
-# 🎴 CardCreator
+# Card Creator
 
-**CardCreator** is a premium, high-performance web application designed for professionals and creators to design, customize, and print beautiful cards instantly. Built with React and Vite, it offers a seamless, real-time editing experience.
+Card Creator helps kids make bright, colorful cards for a school project board.
+Type a title and a few facts, add a picture, pick a look, then print the cards,
+cut them out and stick them on the board. It's friendlier than pasting plain
+printouts, and simple enough to use without a grown-up hovering nearby.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fgitosaurusrex%2FCardCreator)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fgitosaurusrex%2Fcard-creator)
 
-## ✨ Features
+## What you can do
 
-- **Live Preview**: Edit titles, body text, fonts and colours and see the card update as you type.
-- **Dynamic Layouts**: Switch between horizontal and vertical orientations with ease.
-- **Universal Styling**: Apply appearance settings to all cards or customize them individually.
-- **Media Integration**: Upload images directly or use external URLs with overlay captions.
-- **Print-Ready**: Optimized print styles ensuring high-quality physical output.
-- **Cloud Sync**: Projects are saved to your account automatically, with a local copy if you go offline.
+- **Write**: a title and your words, with a choice of fun fonts and sizes.
+- **Add a picture** from your computer (or a link), choose which side it goes
+  on, add a label, and pick which part of the picture shows.
+- **Pick a look** with one click (Sunshine, Ocean, Chalkboard and more), then
+  change any color, border or corner you like.
+- **Arrange**: wide or tall cards, how tall each card is, where the words sit
+  and how much space goes around them.
+- **Keep going**: copy, reorder and delete cards, undo and redo anything, and
+  use one card's look on all the others.
+- **Print**: choose which cards to print. The preview shows each card exactly
+  as it will print, with its size on paper (for example 19 × 14 cm).
+- **Get help**: a short animated demo shows the idea, and "Show me how" opens a
+  guided tour of the editor. Every control has a one-line hint.
 
-## 🚀 Quick Start
+Projects save automatically to your account, with a copy kept in the browser in
+case the internet drops out.
 
-### Online
-Click the **Deploy with Vercel** button above to launch your own instance in seconds!
+## Running it yourself
 
-### Local Development
-1. Clone the repository: `git clone https://github.com/gitosaurusrex/CardCreator.git`
-2. Install dependencies: `npm ci`
-3. Run dev server: `npm run dev`
+### On Vercel
+Use the **Deploy with Vercel** button above. You'll need a Clerk application
+(for sign-in) and a Postgres database. Set these environment variables:
+
+| Variable | What it's for |
+| --- | --- |
+| `VITE_CLERK_PUBLISHABLE_KEY` | Clerk publishable key, used by the browser |
+| `CLERK_SECRET_KEY` | Clerk secret key, used by the API |
+| `POSTGRES_URL` | Postgres connection string |
+| `INIT_DB_SECRET` | Only while setting up the database (see below) |
 
 ### Database setup
-The schema is created by `/api/init-db`, which is disabled unless the
-`INIT_DB_SECRET` environment variable is set. After deploying with it set, run:
+The tables are created by `/api/init-db`, which is switched off unless the
+`INIT_DB_SECRET` environment variable is set. Set it, redeploy, then run:
 
 ```bash
 curl -X POST -H "Authorization: Bearer $INIT_DB_SECRET" https://<your-deployment>/api/init-db
 ```
 
-It is safe to re-run (it also adds indexes to existing databases). Unset the
-variable afterwards to disable the endpoint again.
+It's safe to run again later. Afterwards, delete the variable and redeploy to
+switch the endpoint off.
 
-## 🛠️ Technology Stack
+### On your computer
+```bash
+git clone https://github.com/gitosaurusrex/card-creator.git
+cd card-creator
+npm ci
+npm run dev
+```
 
-- **Framework**: React 19
-- **Bundler**: Vite 7
-- **Styling**: Vanilla CSS (Custom tokens)
-- **Icons**: Lucide React
-- **Auth**: Clerk
-- **Backend**: Vercel Functions (Node 24) with Postgres
+## How it's built
 
-## 🧪 Testing
+- React 19 and Vite 7, plain CSS with design tokens, Lucide icons
+- Clerk for sign-in
+- Vercel Functions (Node 24) with Postgres for saving projects and pictures
+
+The card styles live in `src/styles/card.css` and are kept separate from the
+app's own styles, so a card looks the same in the editor, in thumbnails and on
+paper. A wide card is 718 px across: the printable width of an A4 page with
+10 mm margins.
+
+## Tests
 
 ```bash
 npm run lint
@@ -51,10 +77,10 @@ npm run test:api   # API handlers, with Postgres and Clerk mocked
 npm run test:e2e   # Playwright, in the browser against a mocked API
 ```
 
-The end-to-end tests start Vite with `--mode e2e`, which replaces Clerk with a
-local stub (`tests/e2e/clerk-stub.jsx`), so no Clerk account or database is
-needed. Run `npx playwright install chromium` once before the first run. CI
-runs all of these on every pull request.
+The end-to-end tests start Vite with `--mode e2e`, which swaps Clerk for a local
+stub (`tests/e2e/clerk-stub.jsx`), so no Clerk account or database is needed.
+Run `npx playwright install chromium` once before the first run. CI runs all of
+these on every pull request.
 
 ---
-Developed by [gitosaurusrex](https://github.com/gitosaurusrex)
+Made by [gitosaurusrex](https://github.com/gitosaurusrex).
