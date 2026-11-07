@@ -45,11 +45,12 @@ export default async function handler(req, res) {
         }
 
         if (req.method === 'POST') {
-            const { id, name, cards } = req.body;
-            if (!id || !name || !cards) {
-                return res.status(400).send(JSON.stringify({ error: "Missing required fields" }));
+            const { id, name, cards } = req.body || {};
+            if (typeof id !== 'string' || id.length === 0 || id.length > 64 ||
+                typeof name !== 'string' || !Array.isArray(cards)) {
+                return res.status(400).send(JSON.stringify({ error: "Missing or invalid fields" }));
             }
-            await sql`
+            const result = await sql`
                 INSERT INTO projects (id, user_id, name, cards, last_modified)
                 VALUES (${id}, ${userId}, ${name}, ${JSON.stringify(cards)}, NOW())
                 ON CONFLICT (id) DO UPDATE SET
@@ -58,6 +59,11 @@ export default async function handler(req, res) {
                     last_modified = NOW()
                 WHERE projects.user_id = ${userId}
             `;
+            // No row written means the ID already belongs to another account
+            // (possible with older Date.now()-based IDs). Don't report success.
+            if (result.rowCount === 0) {
+                return res.status(409).send(JSON.stringify({ error: "Project ID is already in use", code: "id_conflict" }));
+            }
             return res.status(200).send(JSON.stringify({ success: true }));
         }
 

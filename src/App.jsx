@@ -29,8 +29,9 @@ const FontSelector = ({ value, onChange, className = '' }) => (
   </select>
 );
 
-const INITIAL_CARD = {
-  id: Date.now(),
+const newId = () => crypto.randomUUID();
+
+const CARD_DEFAULTS = {
   title: 'My Presentation Card',
   text: 'Enter your content here. This card can hold an optional image, a caption, and a block of text.',
   imageUrl: '',
@@ -56,6 +57,19 @@ const INITIAL_CARD = {
   cardHeight: 530,
   selectedForPrint: true
 };
+
+const createCard = (overrides = {}) => ({ ...CARD_DEFAULTS, id: newId(), ...overrides });
+
+// Appearance settings shared by all cards while "Universal" is on.
+const UNIVERSAL_KEYS = [
+  'titleFont', 'titleSize', 'textFont', 'textSize',
+  'template', 'cardBg', 'textColor',
+  'verticalAlign', 'cardPadding', 'contentPadding',
+  'borderWidth', 'borderRadius', 'imageRadius', 'borderStyle', 'borderColor',
+  'cardHeight'
+];
+
+const NO_CARDS = [];
 
 // Local cache of a user's projects, scoped per account. (The old
 // 'tilemaker_projects_v1' key was shared by every account in the browser, so
@@ -189,12 +203,14 @@ function Workspace({ userId }) {
   const [projects, setProjects] = useState([]);
   const [currentProjectId, setCurrentProjectId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [cards, setCards] = useState([INITIAL_CARD]);
-  const [activeCardId, setActiveCardId] = useState(INITIAL_CARD.id);
+  const [activeCardId, setActiveCardId] = useState(null);
   const [universalConfig, setUniversalConfig] = useState(false);
   const [saveStatus, setSaveStatus] = useState('saved');
 
+  // `projects` is the single source of truth; the open project's cards are
+  // derived from it rather than copied into separate state.
   const activeProject = projects.find(p => p.id === currentProjectId);
+  const cards = activeProject?.cards ?? NO_CARDS;
   const { getToken } = useAuth();
   const keys = useMemo(() => cacheKeys(userId), [userId]);
 
@@ -221,30 +237,52 @@ function Workspace({ userId }) {
     writeJSON(keys.unsynced, [...ids]);
   }, [keys]);
 
+  // Give a project a fresh ID, everywhere it is referenced. Used when the
+  // server says its ID already belongs to another account.
+  const rekeyProject = useCallback((oldId) => {
+    const freshId = newId();
+    const rekey = list => list.map(p => (p.id === oldId ? { ...p, id: freshId } : p));
+    projectsRef.current = rekey(projectsRef.current);
+    setProjects(rekey);
+    setCurrentProjectId(cur => (cur === oldId ? freshId : cur));
+    if (dirtyIdsRef.current.delete(oldId)) dirtyIdsRef.current.add(freshId);
+    setUnsynced(oldId, false);
+    setUnsynced(freshId, true);
+    writeJSON(keys.projects, projectsRef.current);
+    return projectsRef.current.find(p => p.id === freshId);
+  }, [keys, setUnsynced]);
+
   // Saves are serialized so an older request can never land after (and
   // overwrite) a newer one. Each job sends the project as it is when the
   // job runs, not when it was queued.
   const pushProject = useCallback((id, { keepalive = false } = {}) => {
     const job = async () => {
-      const project = projectsRef.current.find(p => p.id === id);
+      let project = projectsRef.current.find(p => p.id === id);
       if (!project) return;
       setSaveStatus('saving');
       try {
         const token = await getTokenRef.current();
         if (!token) throw new Error('No session token');
-        const body = JSON.stringify(project);
-        const res = await fetch('/api/projects', {
-          method: 'POST',
-          keepalive: keepalive && body.length < KEEPALIVE_BODY_LIMIT,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body,
-        });
+        const post = (proj) => {
+          const body = JSON.stringify(proj);
+          return fetch('/api/projects', {
+            method: 'POST',
+            keepalive: keepalive && body.length < KEEPALIVE_BODY_LIMIT,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body,
+          });
+        };
+        let res = await post(project);
+        if (res.status === 409) {
+          project = rekeyProject(project.id);
+          res = await post(project);
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
         // Keep the marker if the project was edited again while this was in flight.
-        if (!dirtyIdsRef.current.has(id)) setUnsynced(id, false);
+        if (!dirtyIdsRef.current.has(project.id)) setUnsynced(project.id, false);
         setSaveStatus(dirtyIdsRef.current.size > 0 ? 'unsaved' : 'saved');
       } catch (err) {
         console.error('Cloud save failed:', err);
@@ -253,7 +291,7 @@ function Workspace({ userId }) {
     };
     saveQueueRef.current = saveQueueRef.current.then(job);
     return saveQueueRef.current;
-  }, [setUnsynced]);
+  }, [setUnsynced, rekeyProject]);
 
   // Write pending changes to the local cache immediately, then queue them
   // for the server. Safe to call at any time; a no-op when nothing changed.
@@ -268,6 +306,25 @@ function Workspace({ userId }) {
     ids.forEach(id => pushProject(id, { keepalive }));
     return saveQueueRef.current;
   }, [keys, setUnsynced, pushProject]);
+
+  // Debounced autosave, triggered explicitly by edits (merely opening a
+  // project doesn't save it). Closing a project or hiding the tab flushes.
+  const scheduleSave = useCallback((id) => {
+    dirtyIdsRef.current.add(id);
+    setSaveStatus('unsaved');
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => flushSave(), SAVE_DEBOUNCE_MS);
+  }, [flushSave]);
+
+  // The one way to edit a project: applies the change, stamps it, saves it.
+  const updateProject = useCallback((id, change) => {
+    setProjects(prev => prev.map(p => (p.id === id ? { ...change(p), lastModified: Date.now() } : p)));
+    scheduleSave(id);
+  }, [scheduleSave]);
+
+  const updateCards = useCallback((projectId, change) => {
+    updateProject(projectId, p => ({ ...p, cards: change(p.cards) }));
+  }, [updateProject]);
 
   useEffect(() => {
     let cancelled = false;
@@ -309,23 +366,6 @@ function Workspace({ userId }) {
     return () => { cancelled = true; };
   }, [keys, pushProject]);
 
-  useEffect(() => {
-    if (activeProject && currentProjectId) {
-      setCards(activeProject.cards);
-      setActiveCardId(activeProject.cards[0]?.id || INITIAL_CARD.id);
-    }
-  }, [currentProjectId]);
-
-  // Debounced autosave. Deliberately has no cleanup that cancels the timer:
-  // closing a project must not drop the last edits (closeProject also flushes).
-  useEffect(() => {
-    if (!currentProjectId) return;
-    dirtyIdsRef.current.add(currentProjectId);
-    setSaveStatus('unsaved');
-    clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => flushSave(), SAVE_DEBOUNCE_MS);
-  }, [projects, currentProjectId, flushSave]);
-
   // Flush when the tab is hidden or closed, and when signing out unmounts us.
   useEffect(() => {
     const onVisibilityChange = () => {
@@ -341,29 +381,33 @@ function Workspace({ userId }) {
     };
   }, [flushSave]);
 
-  useEffect(() => {
-    if (currentProjectId && cards.length > 0) {
-      setProjects(prev => {
-        const existing = prev.find(p => p.id === currentProjectId);
-        if (existing && existing.cards === cards) return prev;
-        return prev.map(p =>
-          p.id === currentProjectId
-            ? { ...p, cards, lastModified: Date.now() }
-            : p
-        );
-      });
-    }
-  }, [cards, currentProjectId]);
-
   const createProject = () => {
-    const newProject = {
-      id: Date.now().toString(),
+    const card = createCard();
+    const project = {
+      id: newId(),
       name: `Untitled Project ${projects.length + 1}`,
-      cards: [INITIAL_CARD],
+      cards: [card],
       lastModified: Date.now()
     };
-    setProjects([newProject, ...projects]);
-    setCurrentProjectId(newProject.id);
+    setProjects(prev => [project, ...prev]);
+    scheduleSave(project.id);
+    setActiveCardId(card.id);
+    setCurrentProjectId(project.id);
+  };
+
+  const openProject = (id) => {
+    const project = projects.find(p => p.id === id);
+    if (!project) return;
+    const projectCards = Array.isArray(project.cards) ? project.cards : [];
+    if (projectCards.length > 0) {
+      setActiveCardId(projectCards[0].id);
+    } else {
+      // The editor needs at least one card; repair empty/malformed projects.
+      const card = createCard();
+      updateProject(id, p => ({ ...p, cards: [card] }));
+      setActiveCardId(card.id);
+    }
+    setCurrentProjectId(id);
   };
 
   const deleteProject = async (id) => {
@@ -396,39 +440,27 @@ function Workspace({ userId }) {
 
   const activeCard = cards.find(c => c.id === activeCardId) || cards[0];
 
-  const UNIVERSAL_KEYS = [
-    'titleFont', 'titleSize', 'textFont', 'textSize',
-    'template', 'cardBg', 'textColor',
-    'verticalAlign', 'cardPadding', 'contentPadding',
-    'borderWidth', 'borderRadius', 'imageRadius', 'borderStyle', 'borderColor',
-    'cardHeight'
-  ];
-
   const toggleUniversal = () => {
     const newVal = !universalConfig;
     setUniversalConfig(newVal);
     if (newVal) {
       const activeSettings = {};
       UNIVERSAL_KEYS.forEach(key => activeSettings[key] = activeCard[key]);
-      setCards(prevCards => prevCards.map(c => ({ ...c, ...activeSettings })));
+      updateCards(currentProjectId, cs => cs.map(c => ({ ...c, ...activeSettings })));
     }
   };
 
   const addCard = () => {
-    const newCard = {
-      ...INITIAL_CARD,
-      id: Date.now(),
-      title: `New Card ${cards.length + 1}`
-    };
+    const newCard = createCard({ title: `New Card ${cards.length + 1}` });
     if (universalConfig) {
       UNIVERSAL_KEYS.forEach(key => newCard[key] = activeCard[key]);
     }
-    setCards([...cards, newCard]);
+    updateCards(currentProjectId, cs => [...cs, newCard]);
     setActiveCardId(newCard.id);
   };
 
-  const updateCard = (id, updates) => {
-    setCards(prevCards => prevCards.map(c => {
+  const updateCard = (id, updates, projectId = currentProjectId) => {
+    updateCards(projectId, prevCards => prevCards.map(c => {
       if (c.id === id) return { ...c, ...updates };
       if (universalConfig) {
         const universalUpdates = {};
@@ -444,7 +476,7 @@ function Workspace({ userId }) {
   const deleteCard = (id) => {
     if (cards.length === 1) return;
     const newCards = cards.filter(c => c.id !== id);
-    setCards(newCards);
+    updateCards(currentProjectId, cs => cs.filter(c => c.id !== id));
     if (activeCardId === id) {
       setActiveCardId(newCards[newCards.length - 1].id);
     }
@@ -463,7 +495,9 @@ function Workspace({ userId }) {
       alert('File is too large. Max 3MB.');
       return;
     }
+    // Capture the target now: the user may switch card or project mid-upload.
     const cardId = activeCardId;
+    const projectId = currentProjectId;
     setSaveStatus('saving');
     try {
       const base64 = await readFileAsDataURL(file);
@@ -480,7 +514,7 @@ function Workspace({ userId }) {
       if (!res.ok || !data.url) {
         throw new Error(data.error || `HTTP ${res.status}`);
       }
-      updateCard(cardId, { imageUrl: data.url });
+      updateCard(cardId, { imageUrl: data.url }, projectId);
     } catch (err) {
       console.error('Upload failed:', err);
       setSaveStatus('error');
@@ -517,7 +551,7 @@ function Workspace({ userId }) {
   };
 
   const updateProjectName = (name) => {
-    setProjects(prev => prev.map(p => p.id === currentProjectId ? { ...p, name } : p));
+    updateProject(currentProjectId, p => ({ ...p, name }));
   };
 
   if (isLoading) return <LoadingScreen />;
@@ -527,7 +561,7 @@ function Workspace({ userId }) {
       {!currentProjectId ? (
         <ProjectSelector
           projects={projects}
-          onSelect={setCurrentProjectId}
+          onSelect={openProject}
           onCreate={createProject}
           onDelete={deleteProject}
         />
