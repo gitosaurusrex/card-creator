@@ -23,6 +23,17 @@ Click the **Deploy with Vercel** button above to launch your own instance in sec
 2. Install dependencies: `npm install`
 3. Run dev server: `npm run dev`
 
+### Database setup
+The schema is created by `/api/init-db`, which is disabled unless the
+`INIT_DB_SECRET` environment variable is set. After deploying with it set, run:
+
+```bash
+curl -X POST -H "Authorization: Bearer $INIT_DB_SECRET" https://<your-deployment>/api/init-db
+```
+
+It is safe to re-run (it also adds indexes to existing databases). Unset the
+variable afterwards to disable the endpoint again.
+
 ## 🛠️ Technology Stack
 
 - **Framework**: React 19
