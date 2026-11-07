@@ -82,5 +82,10 @@ stub (`tests/e2e/clerk-stub.jsx`), so no Clerk account or database is needed.
 Run `npx playwright install chromium` once before the first run. CI runs all of
 these on every pull request.
 
+## Working on it
+
+[AGENTS.md](AGENTS.md) explains how the code fits together, the rules that keep
+printing and saved projects working, and the list of outstanding work.
+
 ---
 Made by [gitosaurusrex](https://github.com/gitosaurusrex).
