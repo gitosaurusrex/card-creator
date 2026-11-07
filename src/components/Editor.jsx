@@ -11,6 +11,12 @@ import { ColorsPanel } from './panels/ColorsPanel.jsx';
 import { LayoutPanel } from './panels/LayoutPanel.jsx';
 import { createCard, pickStyle } from '../lib/cards.js';
 
+const CONTINUOUS_FIELDS = new Set([
+  'title', 'text', 'caption', 'titleSize', 'textSize', 'cardHeight',
+  'contentPadding', 'cardPadding', 'borderWidth', 'borderRadius', 'imageRadius',
+  'cardBg', 'textColor', 'borderColor',
+]);
+
 const TABS = [
   { id: 'words', label: 'Words', icon: Type, intro: 'What your card says.' },
   { id: 'picture', label: 'Picture', icon: Image, intro: 'Add a photo or drawing.' },
@@ -72,8 +78,13 @@ export function Editor({
   };
   useEffect(() => () => clearTimeout(toastTimer.current), []);
 
-  const changeCard = (updates, cardId = activeCard.id, inProject = projectId) =>
-    updateCards(inProject, cs => cs.map(c => (c.id === cardId ? { ...c, ...updates } : c)));
+  // Typing and slider drags change one field many times a second; those
+  // bursts undo as one step. Everything else is its own step.
+  const changeCard = (updates, cardId = activeCard.id, inProject = projectId) => {
+    const keys = Object.keys(updates);
+    const group = keys.length === 1 && CONTINUOUS_FIELDS.has(keys[0]) ? `${cardId}:${keys[0]}` : null;
+    updateCards(inProject, cs => cs.map(c => (c.id === cardId ? { ...c, ...updates } : c)), { group });
+  };
 
   const addCard = () => {
     // New cards start with the same look as the card you're on.

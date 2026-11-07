@@ -98,13 +98,11 @@ test('switching accounts shows and saves nothing from the previous user', async 
   expect(api.saves().filter(r => r.user === 'bob')).toHaveLength(0);
 });
 
-// APP BUG (src/hooks/useProjects.js): when the account changes while an edit
-// is pending, the unmount flush asks getToken() for a token *after* the switch
-// and POSTs the previous user's project with the new user's token, so it lands
-// in the new user's account; the old user's unsynced marker is then cleared,
-// so their own server copy never gets the edit. Expected to fail until fixed.
+// Regression guard: an edit still waiting to be saved when the account
+// changes must never be sent with the new account's session (it would land in
+// the wrong account). It stays in the previous user's local copy, marked
+// unsynced, and is uploaded when they sign in again.
 test('switching accounts from inside the editor never saves the pending edit to the new account', async ({ page }) => {
-  test.fail(true, 'App bug: pending edit is flushed with the new account\'s token (see comment above)');
   const api = await mockApi(page, { db: { alice: [aliceProject()], bob: [] } });
   await signIn(page, 'alice');
 

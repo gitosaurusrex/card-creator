@@ -157,8 +157,10 @@ export function ColorPicker({ id, label, hint, value, swatches, onChange }) {
 }
 
 /** Fonts shown as chips written in their own typeface. */
-export function FontPicker({ label, hint, value, onChange, sample = 'Aa' }) {
+export function FontPicker({ label, hint, value: rawValue, onChange, sample = 'Aa' }) {
   const groupId = useId();
+  // Cards saved without a font use the theme's font.
+  const value = rawValue || 'inherit';
   const known = FONTS.some(f => f.value === value);
   const fonts = known ? FONTS : [...FONTS, { value, label: 'Custom' }];
   return (

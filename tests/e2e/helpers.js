@@ -125,8 +125,8 @@ export async function expectCardOrder(page, titles) {
   for (const [i, title] of titles.entries()) await expect(cardThumb(page, i + 1, title)).toBeVisible();
 }
 
-/** The big preview of the active card. */
-export const preview = (page) => page.getByRole('region', { name: 'Card preview' });
+/** The big preview of the active card (a landmark labelled "Card preview"). */
+export const preview = (page) => page.getByLabel('Card preview', { exact: true });
 
 /** Leaves the editor ("My projects"), which flushes pending saves. */
 export async function closeProject(page) {

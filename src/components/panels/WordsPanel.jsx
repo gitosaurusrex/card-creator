@@ -1,7 +1,7 @@
 import { TextField, Slider, FontPicker } from '../controls.jsx';
 import { FONTS } from '../../lib/fonts.js';
 
-const fontName = (value) => FONTS.find(f => f.value === value)?.label || 'Custom';
+const fontName = (value) => FONTS.find(f => f.value === (value || 'inherit'))?.label || 'Custom';
 
 export function WordsPanel({ card, onChange, overflowing }) {
   return (

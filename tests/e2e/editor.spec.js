@@ -314,3 +314,46 @@ test.describe('colors and layout', () => {
     expect(api.lastSaved().cards[0].cardHeight).toBe(530);
   });
 });
+
+test('a picture address is applied only when chosen, and must look like a web address', async ({ page }) => {
+  const api = await mockApi(page, { db: { erin: [] } });
+  await signIn(page, 'erin');
+  await newProjectButton(page).click();
+  await tab(page, 'Picture').click();
+  await page.getByText('Use a picture from a website').click();
+
+  const address = page.getByLabel('Picture address');
+  await address.pressSequentially('htt');
+  // Typing alone changes nothing on the card.
+  await expect(preview(page).locator('img')).toHaveCount(0);
+
+  await address.fill('not a link');
+  await page.getByRole('button', { name: 'Use this picture' }).click();
+  await expect(page.getByRole('alert')).toContainText('should start with http');
+  await expect(preview(page).locator('img')).toHaveCount(0);
+
+  await address.fill('https://example.com/bee.png');
+  await address.press('Enter');
+  await expect(preview(page).locator('img')).toHaveAttribute('src', 'https://example.com/bee.png');
+  await expect.poll(() => api.lastSaved()?.cards[0].imageUrl, { timeout: 5000 }).toBe('https://example.com/bee.png');
+});
+
+test('words that do not fit are flagged, and the fix buttons make them fit', async ({ page }) => {
+  await mockApi(page, {
+    db: { erin: [project('p1', 'Long Words', [{ title: 'Honey', text: 'Bees make honey. '.repeat(60), textSize: 19, titleSize: 40, cardHeight: 530 }])] },
+  });
+  await signIn(page, 'erin');
+  await projectButton(page, 'Long Words').click();
+
+  const hint = page.getByText('Your words don’t fit on the card.');
+  await expect(hint).toBeVisible();
+  await expect(preview(page).getByText('Some words don’t fit')).toBeVisible();
+
+  // Keep making the card taller and the words smaller until everything fits.
+  for (let i = 0; i < 12 && await hint.isVisible(); i++) {
+    const taller = page.getByRole('button', { name: 'Make the card taller' });
+    await (await taller.isEnabled() ? taller : page.getByRole('button', { name: 'Make the words smaller' })).click();
+  }
+  await expect(hint).toHaveCount(0);
+  await expect(preview(page).getByText('Some words don’t fit')).toHaveCount(0);
+});

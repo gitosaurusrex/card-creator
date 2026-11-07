@@ -22,6 +22,17 @@ const readFileAsDataURL = (file) => new Promise((resolve, reject) => {
 
 const modifiedTime = (project) => new Date(project.lastModified).getTime() || 0;
 
+// The user a Clerk session token was issued to (its `sub` claim), or null
+// if the token can't be read.
+function tokenSubject(token) {
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(payload)).sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * A signed-in user's projects: loading, editing, autosave to the server
  * (with a local copy), delete, image upload and undo/redo.
@@ -44,6 +55,11 @@ export function useProjects(userId, { onRekey } = {}) {
   const dirtyIdsRef = useRef(new Set());
   const saveTimerRef = useRef(null);
   const saveQueueRef = useRef(Promise.resolve());
+  // Set once this user's workspace is gone (sign-out or account switch).
+  // After that nothing is sent: the session may already belong to someone
+  // else. Unsent edits stay in this user's local copy, marked unsynced, and
+  // go up the next time they sign in.
+  const disposedRef = useRef(false);
 
   useEffect(() => {
     getTokenRef.current = getToken;
@@ -62,7 +78,7 @@ export function useProjects(userId, { onRekey } = {}) {
   }, [keys]);
 
   // Undo history for the cards of one project at a time.
-  const historyRef = useRef({ projectId: null, past: [], future: [], lastAt: 0 });
+  const historyRef = useRef({ projectId: null, past: [], future: [], lastAt: 0, lastGroup: null });
   const [historyVersion, setHistoryVersion] = useState(0);
   const bumpHistory = () => setHistoryVersion(v => v + 1);
 
@@ -88,11 +104,16 @@ export function useProjects(userId, { onRekey } = {}) {
   const pushProject = useCallback((id, { keepalive = false } = {}) => {
     const job = async () => {
       let project = projectsRef.current.find(p => p.id === id);
-      if (!project) return;
+      if (!project || disposedRef.current) return;
       setSaveStatus('saving');
       try {
         const token = await getTokenRef.current();
         if (!token) throw new Error('No session token');
+        const subject = tokenSubject(token);
+        if (disposedRef.current || (subject && subject !== userId)) {
+          console.warn('Skipped a save: the signed-in account changed.');
+          return;
+        }
         const post = (proj) => {
           const body = JSON.stringify(proj);
           return fetch('/api/projects', {
@@ -121,7 +142,7 @@ export function useProjects(userId, { onRekey } = {}) {
     };
     saveQueueRef.current = saveQueueRef.current.then(job);
     return saveQueueRef.current;
-  }, [setUnsynced, rekeyProject]);
+  }, [userId, setUnsynced, rekeyProject]);
 
   // Write pending changes to the local cache immediately, then queue them
   // for the server. Safe to call at any time; a no-op when nothing changed.
@@ -156,20 +177,26 @@ export function useProjects(userId, { onRekey } = {}) {
     updateProject(projectId, p => ({ ...p, cards }));
   }, [updateProject]);
 
-  /** Change a project's cards, recording an undo step. */
-  const updateCards = useCallback((projectId, change) => {
+  /**
+   * Change a project's cards, recording an undo step. Pass `group` (e.g. the
+   * field being typed into or dragged) to fold quick repeated edits of the
+   * same thing into one step; one-off actions always get their own step.
+   */
+  const updateCards = useCallback((projectId, change, { group = null } = {}) => {
     const current = projectsRef.current.find(p => p.id === projectId)?.cards;
     const history = historyRef.current;
     if (current) {
       const now = Date.now();
       if (history.projectId !== projectId) {
-        Object.assign(history, { projectId, past: [], future: [], lastAt: 0 });
+        Object.assign(history, { projectId, past: [], future: [], lastAt: 0, lastGroup: null });
       }
-      if (now - history.lastAt > UNDO_GROUP_MS) {
+      const sameBurst = group !== null && group === history.lastGroup && now - history.lastAt <= UNDO_GROUP_MS;
+      if (!sameBurst) {
         history.past = [...history.past.slice(-(UNDO_LIMIT - 1)), current];
       }
       history.future = [];
       history.lastAt = now;
+      history.lastGroup = group;
       bumpHistory();
     }
     updateProject(projectId, p => ({ ...p, cards: change(p.cards) }));
@@ -183,6 +210,7 @@ export function useProjects(userId, { onRekey } = {}) {
     history.past = history.past.slice(0, -1);
     history.future = [current, ...history.future];
     history.lastAt = 0;
+    history.lastGroup = null;
     bumpHistory();
     setCards(projectId, previous);
     return previous;
@@ -196,13 +224,14 @@ export function useProjects(userId, { onRekey } = {}) {
     history.future = rest;
     history.past = [...history.past, current];
     history.lastAt = 0;
+    history.lastGroup = null;
     bumpHistory();
     setCards(projectId, next);
     return next;
   }, [setCards]);
 
   const resetHistory = useCallback((projectId) => {
-    historyRef.current = { projectId, past: [], future: [], lastAt: 0 };
+    historyRef.current = { projectId, past: [], future: [], lastAt: 0, lastGroup: null };
     bumpHistory();
   }, []);
 
@@ -258,11 +287,15 @@ export function useProjects(userId, { onRekey } = {}) {
       if (document.visibilityState === 'hidden') flushSave({ keepalive: true });
     };
     const onPageHide = () => flushSave({ keepalive: true });
+    disposedRef.current = false;
     document.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('pagehide', onPageHide);
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.removeEventListener('pagehide', onPageHide);
+      // Keep pending edits in this user's local copy (marked unsynced), but
+      // send nothing: by now the session may belong to a different account.
+      disposedRef.current = true;
       flushSave();
     };
   }, [flushSave]);
