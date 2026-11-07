@@ -31,6 +31,7 @@ export function LayoutPanel({ card, onChange }) {
         step={10}
         minLabel="Short"
         maxLabel="Tall"
+        format={(px) => `${Math.round(px * 2.54 / 96)} cm`}
         onChange={(cardHeight) => onChange({ cardHeight })}
       />
       <Choice
@@ -56,8 +57,8 @@ export function LayoutPanel({ card, onChange }) {
       />
       <Slider
         id="card-padding"
-        label="Frame"
-        hint="Adds a strip of background color all the way around the inside edge."
+        label="Inside edge"
+        hint="Adds a strip of background color all the way around, just inside the border."
         value={card.cardPadding}
         min={0}
         max={60}

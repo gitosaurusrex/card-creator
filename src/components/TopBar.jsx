@@ -19,6 +19,9 @@ export function SaveStatus({ status }) {
   );
 }
 
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const KEY = isMac ? '⌘' : 'Ctrl+';
+
 export function TopBar({ name, onRename, onBack, saveStatus, canUndo, canRedo, onUndo, onRedo, onHelp, onPrint }) {
   return (
     <header className="topbar">
@@ -36,10 +39,10 @@ export function TopBar({ name, onRename, onBack, saveStatus, canUndo, canRedo, o
 
       <div className="topbar__tools">
         <div className="btn-pair" data-tour="undo">
-          <button type="button" className="btn btn--ghost" onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)">
+          <button type="button" className="btn btn--ghost" onClick={onUndo} disabled={!canUndo} title={`Undo (${KEY}Z)`}>
             <Undo2 size={20} aria-hidden="true" /> <span className="hide-md">Undo</span>
           </button>
-          <button type="button" className="btn btn--ghost" onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)">
+          <button type="button" className="btn btn--ghost" onClick={onRedo} disabled={!canRedo} title={`Redo (${KEY}Shift+Z)`}>
             <Redo2 size={20} aria-hidden="true" /> <span className="hide-md">Redo</span>
           </button>
         </div>

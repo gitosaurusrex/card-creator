@@ -45,7 +45,7 @@ export function PrintDialog({ open, cards, onToggle, onSetAll, onClose, onPrint 
           );
         })}
       </ul>
-      <p className="tip"><strong>Tip:</strong> if the colors come out pale, look for “Background graphics” in the print window and turn it on.</p>
+      <p className="tip"><strong>Tip:</strong> if the colors come out pale, ask a grown-up to turn on “Background graphics” in the print window.</p>
     </Dialog>
   );
 }

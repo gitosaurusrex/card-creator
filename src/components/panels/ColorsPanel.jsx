@@ -1,4 +1,4 @@
-import { Field, ColorPicker, Choice, Slider } from '../controls.jsx';
+import { Field, ColorPicker, Choice, Slider, RadioGroup } from '../controls.jsx';
 import { CardView } from '../CardView.jsx';
 import { THEMES, SWATCHES, matchingTheme } from '../../lib/themes.js';
 
@@ -10,7 +10,7 @@ const BORDER_STYLES = [
   { value: 'double', label: 'Double' },
 ];
 
-function ThemeTile({ theme, card, selected, onPick }) {
+function ThemeTile({ theme, card, selected, radioProps }) {
   // A real (tiny) card in the theme, with this card's own title.
   // Shown at about 15% size, so text and borders are enlarged to stay visible.
   const sample = {
@@ -20,13 +20,7 @@ function ThemeTile({ theme, card, selected, onPick }) {
     borderWidth: theme.style.borderWidth * 3, borderRadius: theme.style.borderRadius * 3,
   };
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      className={`theme-tile ${selected ? 'is-selected' : ''}`}
-      onClick={() => onPick(theme)}
-    >
+    <button type="button" className={`theme-tile ${selected ? 'is-selected' : ''}`} {...radioProps}>
       <span className="theme-tile__card" aria-hidden="true">
         <span className="theme-tile__scale">
           <CardView card={{ ...sample, title: 'Aa', text: '' }} />
@@ -42,17 +36,16 @@ export function ColorsPanel({ card, onChange }) {
   return (
     <>
       <Field label={<span id="themes-label">Pick a look</span>} hint="One click changes the colors, border and fonts together. You can still change anything after.">
-        <div className="themes" role="radiogroup" aria-labelledby="themes-label">
-          {THEMES.map(theme => (
-            <ThemeTile
-              key={theme.id}
-              theme={theme}
-              card={card}
-              selected={current?.id === theme.id}
-              onPick={(t) => onChange(t.style)}
-            />
-          ))}
-        </div>
+        <RadioGroup
+          labelledBy="themes-label"
+          className="themes"
+          options={THEMES}
+          isSelected={(t) => current?.id === t.id}
+          onSelect={(t) => onChange(t.style)}
+          renderOption={(theme, props, selected) => (
+            <ThemeTile key={theme.id} theme={theme} card={card} selected={selected} radioProps={props} />
+          )}
+        />
       </Field>
 
       <ColorPicker id="color-bg" label="Background color" value={card.cardBg} swatches={SWATCHES.background} onChange={(cardBg) => onChange({ cardBg })} />

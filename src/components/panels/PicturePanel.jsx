@@ -1,6 +1,6 @@
 import { useId, useRef, useState } from 'react';
-import { ImagePlus, LoaderCircle, Trash2, RefreshCw, Link } from 'lucide-react';
-import { Field, TextField, Choice, Slider } from '../controls.jsx';
+import { ImagePlus, LoaderCircle, Trash2, RefreshCw, Link, Check } from 'lucide-react';
+import { Field, TextField, Choice, Slider, RadioGroup } from '../controls.jsx';
 import { ShapeIcon } from '../ShapeIcon.jsx';
 import { ALLOWED_IMAGE_TYPES } from '../../hooks/useProjects.js';
 import { isTall } from '../../lib/cards.js';
@@ -45,9 +45,25 @@ export function PicturePanel({ card, onChange, onUpload }) {
       accept={ALLOWED_IMAGE_TYPES.join(',')}
       onChange={onFile}
       className="visually-hidden"
+      aria-label="Choose a picture from your computer"
+      // With a picture already there, the "Change picture" button opens this.
+      tabIndex={card.imageUrl ? -1 : undefined}
       aria-describedby={error ? errorId : undefined}
     />
   );
+
+  const [urlDraft, setUrlDraft] = useState('');
+  const [urlError, setUrlError] = useState(null);
+  const applyUrl = (raw = urlDraft) => {
+    const url = raw.trim();
+    if (!/^https?:\/\/\S+$/i.test(url)) {
+      setUrlError('That doesn’t look like a picture address. It should start with http.');
+      return;
+    }
+    setUrlError(null);
+    setUrlDraft('');
+    onChange({ imageUrl: url });
+  };
 
   return (
     <>
@@ -91,14 +107,26 @@ export function PicturePanel({ card, onChange, onUpload }) {
       {!card.imageUrl && (
         <details className="more">
           <summary><Link size={16} aria-hidden="true" /> Use a picture from a website</summary>
-          <TextField
-            id="picture-url"
-            label="Picture address"
-            hint="Right-click a picture on a website, choose “Copy image address”, then paste it here."
-            value={card.imageUrl}
-            placeholder="https://…"
-            onChange={(imageUrl) => onChange({ imageUrl: imageUrl.trim() })}
-          />
+          <Field label="Picture address" htmlFor="picture-url" hint="Right-click a picture on a website, choose “Copy image address”, then paste it here.">
+            <div className="url-row">
+              <input
+                id="picture-url"
+                className="text-input"
+                type="url"
+                value={urlDraft}
+                placeholder="https://…"
+                onChange={(e) => { setUrlDraft(e.target.value); setUrlError(null); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyUrl(); } }}
+                onPaste={(e) => { const text = e.clipboardData.getData('text'); if (text) { e.preventDefault(); applyUrl(text); } }}
+                aria-invalid={urlError ? true : undefined}
+                aria-describedby={urlError ? 'picture-url-error' : undefined}
+              />
+              <button type="button" className="btn btn--soft" onClick={() => applyUrl()} disabled={!urlDraft.trim()}>
+                <Check size={18} aria-hidden="true" /> Use this picture
+              </button>
+            </div>
+            {urlError && <p className="notice notice--error" id="picture-url-error" role="alert">{urlError}</p>}
+          </Field>
         </details>
       )}
 
@@ -127,20 +155,27 @@ export function PicturePanel({ card, onChange, onUpload }) {
             onChange={(caption) => onChange({ caption })}
           />
           <Field label={<span id="focus-label">Which part shows?</span>} hint="If the picture gets cut off, pick the part that matters most.">
-            <div className="focus-grid" role="radiogroup" aria-labelledby="focus-label">
-              {POSITIONS.map(position => (
-                <button
-                  key={position}
-                  type="button"
-                  role="radio"
-                  aria-checked={card.imagePosition === position}
-                  aria-label={position.replace('center center', 'middle').replace('center', 'middle')}
-                  title={position.replace('center center', 'middle').replace('center', 'middle')}
-                  className={`focus-grid__cell ${card.imagePosition === position ? 'is-selected' : ''}`}
-                  onClick={() => onChange({ imagePosition: position })}
-                />
-              ))}
-            </div>
+            <RadioGroup
+              labelledBy="focus-label"
+              className="focus-grid"
+              style={{ backgroundImage: `url("${card.imageUrl.replace(/"/g, '%22')}")` }}
+              options={POSITIONS}
+              isSelected={(position) => card.imagePosition === position}
+              onSelect={(position) => onChange({ imagePosition: position })}
+              renderOption={(position, props, selected) => {
+                const name = position === 'center center' ? 'middle' : position.replace('center', 'middle');
+                return (
+                  <button
+                    key={position}
+                    type="button"
+                    aria-label={name}
+                    title={name}
+                    className={`focus-grid__cell ${selected ? 'is-selected' : ''}`}
+                    {...props}
+                  />
+                );
+              }}
+            />
           </Field>
           <Slider
             id="image-radius"

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useProjects } from '../hooks/useProjects.js';
 import { cacheKeys, readJSON, writeJSON } from '../lib/storage.js';
 import { Home } from './Home.jsx';
@@ -15,6 +15,12 @@ export function Workspace({ userId }) {
   const [tab, setTab] = useState('words');
   const [tourOpen, setTourOpen] = useState(false);
   const keys = useMemo(() => cacheKeys(userId), [userId]);
+  // The tour switches tabs as it goes; put back the one you were on.
+  const tabBeforeTour = useRef('words');
+  const openTour = () => {
+    tabBeforeTour.current = tab;
+    setTourOpen(true);
+  };
 
   const onRekey = useCallback((oldId, freshId) => {
     setCurrentProjectId(cur => (cur === oldId ? freshId : cur));
@@ -31,7 +37,10 @@ export function Workspace({ userId }) {
     store.resetHistory(id);
     setCurrentProjectId(id);
     // Offer the tour the first time someone opens the editor.
-    if (!readJSON(keys.tourSeen, false)) setTourOpen(true);
+    if (!readJSON(keys.tourSeen, false)) {
+      tabBeforeTour.current = 'words';
+      setTourOpen(true);
+    }
   };
 
   const openProject = (id) => {
@@ -47,6 +56,7 @@ export function Workspace({ userId }) {
   const closeTour = useCallback(() => {
     writeJSON(keys.tourSeen, true);
     setTourOpen(false);
+    setTab(tabBeforeTour.current);
   }, [keys]);
 
   if (store.isLoading) return <LoadingScreen />;
@@ -69,7 +79,7 @@ export function Workspace({ userId }) {
           undo={store.undo}
           redo={store.redo}
           onBack={() => { store.flushSave(); setTourOpen(false); setCurrentProjectId(null); }}
-          onHelp={() => setTourOpen(true)}
+          onHelp={openTour}
         />
       ) : (
         <Home

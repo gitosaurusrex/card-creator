@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Type, Image, Palette, LayoutPanelLeft, Sparkles } from 'lucide-react';
+import { Type, Image, Palette, LayoutPanelLeft } from 'lucide-react';
 import { TopBar } from './TopBar.jsx';
 import { Stage } from './Stage.jsx';
 import { CardStrip } from './CardStrip.jsx';
@@ -31,7 +31,7 @@ function Tabs({ tab, onTab }) {
     }
   };
   return (
-    <div className="tabs" role="tablist" aria-label="Change your card" onKeyDown={onKeyDown}>
+    <div className="tabs" role="tablist" aria-label="Change your card" onKeyDown={onKeyDown} data-tour="tabs">
       {TABS.map(t => (
         <button
           key={t.id}
@@ -60,6 +60,7 @@ export function Editor({
   onBack, onHelp,
 }) {
   const [printOpen, setPrintOpen] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
   const projectId = project.id;
@@ -174,22 +175,14 @@ export function Editor({
         <Tabs tab={current.id} onTab={onTab} />
         <div className="tools__panel" id="tool-panel" role="tabpanel" aria-labelledby={`tab-${current.id}`} data-tour="panel">
           <p className="tools__intro">{current.intro}</p>
-          {current.id === 'words' && <WordsPanel {...panelProps} />}
+          {current.id === 'words' && <WordsPanel {...panelProps} overflowing={overflowing} />}
           {current.id === 'picture' && <PicturePanel {...panelProps} onUpload={uploadForActiveCard} />}
           {current.id === 'colors' && <ColorsPanel {...panelProps} />}
           {current.id === 'layout' && <LayoutPanel {...panelProps} />}
         </div>
-        {cards.length > 1 && (current.id === 'colors' || current.id === 'layout' || current.id === 'words') && (
-          <div className="tools__foot">
-            <button type="button" className="btn btn--soft btn--block" onClick={applyLookToAll}>
-              <Sparkles size={18} aria-hidden="true" /> Use this look on all cards
-            </button>
-            <p className="field__hint">Copies colors, fonts, sizes and layout. Words and pictures stay the same.</p>
-          </div>
-        )}
       </aside>
 
-      <Stage card={activeCard} />
+      <Stage card={activeCard} overflowing={overflowing} onOverflowChange={setOverflowing} />
 
       <CardStrip
         cards={cards}
@@ -199,6 +192,7 @@ export function Editor({
         onDuplicate={duplicateCard}
         onMove={moveCard}
         onDelete={deleteCard}
+        onApplyLook={applyLookToAll}
       />
 
       <PrintDialog

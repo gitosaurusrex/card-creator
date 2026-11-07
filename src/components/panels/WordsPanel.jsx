@@ -3,9 +3,34 @@ import { FONTS } from '../../lib/fonts.js';
 
 const fontName = (value) => FONTS.find(f => f.value === value)?.label || 'Custom';
 
-export function WordsPanel({ card, onChange }) {
+export function WordsPanel({ card, onChange, overflowing }) {
   return (
     <>
+      <div role="status" className="fit-hint-region">
+        {overflowing && (
+          <div className="fit-hint">
+            <p><strong>Your words don’t fit on the card.</strong> Some of them are hidden and won’t print.</p>
+            <div className="fit-hint__actions">
+              <button
+                type="button"
+                className="btn btn--soft"
+                onClick={() => onChange({ textSize: Math.max(10, card.textSize - 2), titleSize: Math.max(16, card.titleSize - 4) })}
+                disabled={card.textSize <= 10 && card.titleSize <= 16}
+              >
+                Make the words smaller
+              </button>
+              <button
+                type="button"
+                className="btn btn--soft"
+                onClick={() => onChange({ cardHeight: Math.min(800, card.cardHeight + 60) })}
+                disabled={card.cardHeight >= 800}
+              >
+                Make the card taller
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
       <TextField
         id="card-title"
         label="Title"
