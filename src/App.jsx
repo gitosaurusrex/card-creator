@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Plus, Trash2, Printer, Columns2, Rows2, Image as ImageIcon, Palette, Type, Bold, Italic, Palette as ColorIcon, FolderOpen, ExternalLink, X, Clock, Lock, Cloud, Check, AlertCircle, Upload } from 'lucide-react';
+import { Plus, Trash2, Printer, Columns2, Image as ImageIcon, Palette, Type, FolderOpen, ExternalLink, X, Clock, Lock, Check, AlertCircle, Upload } from 'lucide-react';
 import { SignInButton, UserButton, useAuth } from '@clerk/clerk-react';
 
 const FONTS = [
@@ -125,21 +125,21 @@ const ProjectSelector = ({ projects, onSelect, onCreate, onDelete }) => {
       <div className="projects-grid">
         <div className="project-card new-project" onClick={onCreate}>
           <Plus size={48} />
-          <span className="font-bold mt-2">New Project</span>
+          <span className="new-project-label">New Project</span>
         </div>
 
         {projects.map(project => (
           <div key={project.id} className="project-card" onClick={() => onSelect(project.id)}>
-            <div className="flex justify-between items-start">
+            <div className="project-card-header">
               <h3 className="project-name">{project.name}</h3>
-              <FolderOpen size={20} className="text-blue-500" />
+              <FolderOpen size={20} className="project-icon" />
             </div>
             <div className="project-meta">
-              <div className="flex items-center gap-1">
+              <div className="project-meta-row">
                 <Clock size={12} />
                 <span>Last modified: {new Date(project.lastModified).toLocaleDateString()}</span>
               </div>
-              <div className="mt-1">{project.cards.length} cards</div>
+              <div className="project-meta-count">{project.cards.length} cards</div>
             </div>
             <div className="project-card-actions" onClick={e => e.stopPropagation()}>
               <button className="project-action-btn btn-secondary" onClick={() => onSelect(project.id)}>
@@ -168,8 +168,8 @@ const FullScreenMessage = ({ subtitle, children }) => (
 
 const LoadingScreen = () => (
   <FullScreenMessage subtitle="Initializing your workspace...">
-    <div className="mt-8 flex justify-center">
-      <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    <div className="loading-spinner-wrap">
+      <div className="loading-spinner" role="status" aria-label="Loading"></div>
     </div>
   </FullScreenMessage>
 );
@@ -182,13 +182,13 @@ function App() {
   if (!isSignedIn) {
     return (
       <FullScreenMessage subtitle="Premium Card Creation for Professionals">
-        <div className="mt-12">
+        <div className="signin-block">
           <SignInButton mode="modal">
-            <button className="print-btn !px-8 !py-4 !text-lg !gap-3">
+            <button className="print-btn cta-btn">
               <Lock size={20} /> Get Started
             </button>
           </SignInButton>
-          <p className="mt-4 text-sm text-gray-400">Sign in to save and sync your card projects</p>
+          <p className="signin-hint">Sign in to save and sync your card projects</p>
         </div>
       </FullScreenMessage>
     );
@@ -591,35 +591,33 @@ function Workspace({ userId }) {
               <Plus size={24} />
             </button>
             <div className="spacer"></div>
-            <div className="ribbon-actions flex gap-2 mr-4 items-center">
-              <div className="flex flex-col gap-1 mr-2">
-                <input
-                  type="text"
-                  value={activeProject?.name || ''}
-                  onChange={(e) => updateProjectName(e.target.value)}
-                  placeholder="Project Name..."
-                  className="bg-transparent border-none text-xs font-bold text-gray-400 focus:text-blue-500 outline-none w-32"
-                  title="Rename Project"
-                />
-              </div>
+            <div className="ribbon-actions">
+              <input
+                type="text"
+                value={activeProject?.name || ''}
+                onChange={(e) => updateProjectName(e.target.value)}
+                placeholder="Project Name..."
+                className="project-name-input"
+                title="Rename Project"
+              />
               <button onClick={closeProject} className="close-project-btn" title="Close Project">
                 <X size={18} /> Close
               </button>
-              <div className="status-indicator flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-full text-[10px] font-bold text-gray-500 whitespace-nowrap border border-gray-100">
+              <div className="status-indicator" role="status">
                 {saveStatus === 'unsaved' && (
-                  <><div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div><span>Pending Sync...</span></>
+                  <><div className="status-dot status-dot--pending"></div><span>Pending Sync...</span></>
                 )}
                 {saveStatus === 'saving' && (
-                  <><div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div><span>Syncing...</span></>
+                  <><div className="status-dot status-dot--saving"></div><span>Syncing...</span></>
                 )}
                 {saveStatus === 'saved' && (
-                  <><Check size={12} className="text-green-500" /><span>Synced to Cloud</span></>
+                  <><Check size={12} className="status-icon--ok" /><span>Synced to Cloud</span></>
                 )}
                 {saveStatus === 'error' && (
-                  <><AlertCircle size={12} className="text-red-400" /><span>Sync Paused (Local Only)</span></>
+                  <><AlertCircle size={12} className="status-icon--error" /><span>Sync Paused (Local Only)</span></>
                 )}
               </div>
-              <div className="flex items-center gap-3 ml-4 border-l pl-4 border-gray-200">
+              <div className="user-menu">
                 <UserButton afterSignOutUrl="/" />
               </div>
             </div>
@@ -630,15 +628,15 @@ function Workspace({ userId }) {
 
           <div className="main-content">
             <div className="editor-panel no-print">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="editor-title mb-0">Card Editor</h2>
+              <div className="editor-header">
+                <h2 className="editor-title">Card Editor</h2>
                 <div
                   onClick={toggleUniversal}
                   className={`universal-toggle ${universalConfig ? 'active' : ''}`}
                   title="Apply appearance settings to all cards"
                 >
                   <div className="toggle-track"><div className="toggle-thumb"></div></div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider">Universal</span>
+                  <span className="universal-toggle-label">Universal</span>
                 </div>
               </div>
 
@@ -647,11 +645,11 @@ function Workspace({ userId }) {
                   <label className="section-label"><Type size={16} /> Content</label>
 
                   <div className="editor-field-group">
-                    <div className="flex justify-between items-center mb-1">
-                      <div className="editor-rich-label mb-0">Title</div>
-                      <div className="flex gap-1 items-center">
-                        <FontSelector value={activeCard.titleFont} onChange={(val) => updateCard(activeCardId, { titleFont: val })} className="!w-28 !p-1 !text-[10px]" />
-                        <input type="number" value={activeCard.titleSize} onChange={(e) => updateCard(activeCardId, { titleSize: parseInt(e.target.value) })} className="editor-input !w-12 !p-1 !text-[10px]" />
+                    <div className="field-header">
+                      <div className="editor-rich-label">Title</div>
+                      <div className="field-header-controls">
+                        <FontSelector value={activeCard.titleFont} onChange={(val) => updateCard(activeCardId, { titleFont: val })} className="compact compact-font" />
+                        <input type="number" value={activeCard.titleSize} onChange={(e) => updateCard(activeCardId, { titleSize: parseInt(e.target.value) })} className="editor-input compact compact-number" />
                       </div>
                     </div>
                     <input
@@ -663,12 +661,12 @@ function Workspace({ userId }) {
                     />
                   </div>
 
-                  <div className="editor-field-group mt-2">
-                    <div className="flex justify-between items-center mb-1">
-                      <div className="editor-rich-label mb-0">Body Text</div>
-                      <div className="flex gap-1 items-center">
-                        <FontSelector value={activeCard.textFont} onChange={(val) => updateCard(activeCardId, { textFont: val })} className="!w-28 !p-1 !text-[10px]" />
-                        <input type="number" value={activeCard.textSize} onChange={(e) => updateCard(activeCardId, { textSize: parseInt(e.target.value) })} className="editor-input !w-12 !p-1 !text-[10px]" />
+                  <div className="editor-field-group">
+                    <div className="field-header">
+                      <div className="editor-rich-label">Body Text</div>
+                      <div className="field-header-controls">
+                        <FontSelector value={activeCard.textFont} onChange={(val) => updateCard(activeCardId, { textFont: val })} className="compact compact-font" />
+                        <input type="number" value={activeCard.textSize} onChange={(e) => updateCard(activeCardId, { textSize: parseInt(e.target.value) })} className="editor-input compact compact-number" />
                       </div>
                     </div>
                     <textarea
@@ -742,9 +740,9 @@ function Workspace({ userId }) {
                       <option value="template-casual">Casual Serious</option>
                     </select>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="editor-field-group"><div className="editor-rich-label">Background</div><input type="color" value={activeCard.cardBg} onChange={(e) => updateCard(activeCardId, { cardBg: e.target.value })} className="editor-input !p-1 h-10" /></div>
-                    <div className="editor-field-group"><div className="editor-rich-label">Text Color</div><input type="color" value={activeCard.textColor} onChange={(e) => updateCard(activeCardId, { textColor: e.target.value })} className="editor-input !p-1 h-10" /></div>
+                  <div className="field-grid-2">
+                    <div className="editor-field-group"><div className="editor-rich-label">Background</div><input type="color" value={activeCard.cardBg} onChange={(e) => updateCard(activeCardId, { cardBg: e.target.value })} className="editor-input color-input" /></div>
+                    <div className="editor-field-group"><div className="editor-rich-label">Text Color</div><input type="color" value={activeCard.textColor} onChange={(e) => updateCard(activeCardId, { textColor: e.target.value })} className="editor-input color-input" /></div>
                   </div>
                 </section>
 
@@ -754,23 +752,23 @@ function Workspace({ userId }) {
                     <div className="editor-rich-label">Card Height: {activeCard.cardHeight}px</div>
                     <input type="range" min="200" max="800" value={activeCard.cardHeight} onChange={(e) => updateCard(activeCardId, { cardHeight: parseInt(e.target.value) })} className="editor-range" />
                   </div>
-                  <div className="editor-field-group mt-2">
+                  <div className="editor-field-group">
                     <div className="editor-rich-label">Flow Direction</div>
-                    <div className="grid grid-cols-3 gap-1">
+                    <div className="button-grid-3">
                       {['horizontal-left', 'horizontal-right', 'vertical'].map((opt) => (
                         <button key={opt} onClick={() => updateCard(activeCardId, { orientation: opt })} className={`layout-btn ${activeCard.orientation === opt ? 'active' : ''}`}>{opt.split('-')[0]}</button>
                       ))}
                     </div>
                   </div>
-                  <div className="editor-field-group mt-2">
+                  <div className="editor-field-group">
                     <div className="editor-rich-label">Vertical Alignment</div>
-                    <div className="grid grid-cols-3 gap-1">
+                    <div className="button-grid-3">
                       {['top', 'center', 'bottom'].map((align) => (
                         <button key={align} onClick={() => updateCard(activeCardId, { verticalAlign: align })} className={`layout-btn ${activeCard.verticalAlign === align ? 'active' : ''}`}>{align}</button>
                       ))}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 mt-2">
+                  <div className="field-grid-2">
                     <div className="editor-field-group"><div className="editor-rich-label">Outer Padding</div><input type="number" value={activeCard.cardPadding} onChange={(e) => updateCard(activeCardId, { cardPadding: parseInt(e.target.value) })} className="editor-input" /></div>
                     <div className="editor-field-group"><div className="editor-rich-label">Inner Spacing</div><input type="number" value={activeCard.contentPadding} onChange={(e) => updateCard(activeCardId, { contentPadding: parseInt(e.target.value) })} className="editor-input" /></div>
                   </div>
@@ -778,11 +776,11 @@ function Workspace({ userId }) {
 
                 <section className="editor-section">
                   <label className="section-label"><Palette size={16} /> Borders & Corners</label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="field-grid-2">
                     <div className="editor-field-group"><div className="editor-rich-label">Stroke Width</div><input type="number" value={activeCard.borderWidth} onChange={(e) => updateCard(activeCardId, { borderWidth: parseInt(e.target.value) })} className="editor-input" /></div>
                     <div className="editor-field-group"><div className="editor-rich-label">Corner Radius</div><input type="number" value={activeCard.borderRadius} onChange={(e) => updateCard(activeCardId, { borderRadius: parseInt(e.target.value) })} className="editor-input" /></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 mt-2">
+                  <div className="field-grid-2">
                     <div className="editor-field-group"><div className="editor-rich-label">Media Radius</div><input type="number" value={activeCard.imageRadius} onChange={(e) => updateCard(activeCardId, { imageRadius: parseInt(e.target.value) })} className="editor-input" /></div>
                     <div className="editor-field-group">
                       <div className="editor-rich-label">Stroke Style</div>
@@ -791,7 +789,7 @@ function Workspace({ userId }) {
                       </select>
                     </div>
                   </div>
-                  <div className="editor-field-group mt-2"><div className="editor-rich-label">Stroke Color</div><input type="color" value={activeCard.borderColor} onChange={(e) => updateCard(activeCardId, { borderColor: e.target.value })} className="editor-input !p-1 h-10" /></div>
+                  <div className="editor-field-group"><div className="editor-rich-label">Stroke Color</div><input type="color" value={activeCard.borderColor} onChange={(e) => updateCard(activeCardId, { borderColor: e.target.value })} className="editor-input color-input" /></div>
                 </section>
               </div>
             </div>
