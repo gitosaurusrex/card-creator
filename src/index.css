@@ -938,6 +938,214 @@ body {
 }
 
 /* Responsive Styles */
+/* ---------------------------------------------------------------------
+   Layout and status styles (these replace Tailwind utility classes that
+   the markup used without Tailwind being installed)
+   --------------------------------------------------------------------- */
+
+.new-project-label {
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+.project-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.project-icon {
+  color: var(--accent-color);
+}
+
+.project-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.project-meta-count {
+  margin-top: 4px;
+}
+
+.loading-spinner-wrap {
+  margin-top: 32px;
+  display: flex;
+  justify-content: center;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--accent-color);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.signin-block {
+  margin-top: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.print-btn.cta-btn {
+  padding: 16px 32px;
+  font-size: 18px;
+  gap: 12px;
+}
+
+.signin-hint {
+  margin-top: 16px;
+  font-size: 14px;
+  color: #8e8e93;
+}
+
+.ribbon-actions {
+  margin-right: 16px;
+}
+
+.project-name-input {
+  width: 128px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: #8e8e93;
+  margin-right: 8px;
+}
+
+.project-name-input:focus {
+  color: var(--accent-color);
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #6e6e73;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: status-pulse 1.5s ease-in-out infinite;
+}
+
+.status-dot--pending {
+  background: #fbbf24;
+}
+
+.status-dot--saving {
+  background: var(--accent-color);
+}
+
+.status-icon--ok {
+  color: #22c55e;
+}
+
+.status-icon--error {
+  color: #f87171;
+}
+
+@keyframes status-pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-dot,
+  .loading-spinner {
+    animation: none;
+  }
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: 16px;
+  padding-left: 16px;
+  border-left: 1px solid var(--border-color);
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.editor-header .editor-title {
+  margin: 0;
+}
+
+.universal-toggle-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.field-header .editor-rich-label {
+  margin-bottom: 0;
+}
+
+.field-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.editor-select.compact,
+.editor-input.compact {
+  padding: 4px;
+  font-size: 10px;
+}
+
+.editor-select.compact-font {
+  width: 112px;
+}
+
+.editor-input.compact-number {
+  width: 48px;
+}
+
+.editor-input.color-input {
+  padding: 4px;
+  height: 40px;
+}
+
+.field-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.button-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
 @media (max-width: 768px) {
   :root {
     --ribbon-height: auto;
