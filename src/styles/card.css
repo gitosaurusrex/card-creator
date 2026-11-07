@@ -1,0 +1,271 @@
+/*
+ * How a card looks, on screen and on paper.
+ *
+ * The rules from "Card Styling" down are carried over unchanged from the
+ * original stylesheet so that saved cards render exactly as before. The one
+ * deliberate change: a wide card is now 718px wide (the printable width of an
+ * A4 page with 10 mm margins) instead of 794px, so the preview wraps text
+ * exactly like the printout always has.
+ */
+
+:root {
+  --card-w: 718px;
+  --card-h: 530px;
+  --card-bg: white;
+  --card-text: #1d1d1f;
+  --card-accent: #007aff;
+  --card-radius: 8px;
+  --card-font: 'Inter', system-ui, sans-serif;
+}
+
+/* Card Styling */
+.card-preview {
+  width: var(--card-w);
+  height: var(--card-h);
+  background-color: var(--card-bg);
+  color: var(--card-text);
+  font-family: var(--card-font);
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.shadow-ambient {
+  box-shadow:
+    0 30px 60px -12px rgba(50, 50, 93, 0.25),
+    0 18px 36px -18px rgba(0, 0, 0, 0.3),
+    0 -12px 36px -8px rgba(0, 0, 0, 0.025);
+}
+
+
+.card-preview.vertical {
+  flex-direction: column;
+  --card-w: 460px;
+  --card-h: 700px;
+}
+
+.card-preview.horizontal-left {
+  flex-direction: row;
+}
+
+.card-preview.horizontal-right {
+  flex-direction: row-reverse;
+}
+
+.card-image {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  display: block;
+}
+
+.card-image-content {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.card-caption-overlay {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: 8px;
+  text-align: center;
+  font-size: 12px;
+}
+
+/* Card Content & Wrapping */
+.card-content {
+  flex: 1.5;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.card-title {
+  font-size: 2.5rem;
+  margin: 0 0 16px 0;
+  font-weight: 800;
+  line-height: 1.1;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.card-text {
+  font-size: 1.2rem;
+  line-height: 1.5;
+  margin: 0;
+  opacity: 0.85;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* Ensure all rich-text content inside wraps correctly */
+.card-content * {
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.card-text * {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+/* Templates */
+.template-pastel {
+  --card-radius: 32px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 100%);
+  font-family: 'Outfit', sans-serif;
+}
+
+.template-corporate {
+  --card-radius: 0px;
+  font-family: 'Inter', sans-serif;
+  border-left: 16px solid var(--card-accent) !important;
+}
+
+.template-school {
+  --card-radius: 12px;
+  font-family: 'Chalkboard SE', 'Comic Sans MS', cursive;
+  background-image: radial-gradient(#edf2f4 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.template-casual {
+  --card-radius: 4px;
+  font-family: 'Inter', sans-serif;
+}
+
+.template-high-contrast {
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.template-sophisticated {
+  font-family: 'Libre Baskerville', serif;
+  background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.2), transparent);
+}
+
+.template-monospace {
+  font-family: 'Fira Code', 'Courier New', monospace;
+}
+
+.template-large-print {
+  font-family: 'Inter', sans-serif;
+}
+
+.template-large-print .card-title {
+  font-size: 4rem;
+}
+
+.template-large-print .card-text {
+  font-size: 2rem;
+}
+
+.template-monospace .card-title {
+  font-size: 1.8rem;
+}
+
+.template-monospace .card-text {
+  font-size: 1rem;
+}
+
+/*
+ * Keep cards independent of the app around them: these match the browser
+ * defaults the original page gave cards, so text wraps exactly as before.
+ */
+.card-preview {
+  line-height: normal;
+  letter-spacing: normal;
+  text-align: left;
+}
+
+.card-preview .card-title {
+  margin: 0 0 16px 0;
+  text-wrap: wrap;
+}
+
+/* Themes added with the redesign set everything through card fields. */
+.template-plain {
+  font-family: 'Outfit', sans-serif;
+}
+
+/* ------------------------------------------------------------------ */
+/* Printing                                                            */
+/* ------------------------------------------------------------------ */
+
+.print-only {
+  display: none !important;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  .print-only {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-container {
+    display: block !important;
+    width: 100% !important;
+    background: white !important;
+  }
+
+  /* Wide cards fill the page width, which is exactly their on-screen width. */
+  .print-only .print-card {
+    display: flex !important;
+    width: 100% !important;
+    margin-bottom: 5mm !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    box-shadow: none !important;
+    outline: 0.1mm solid #eee !important;
+    outline-offset: -0.1mm;
+    transition: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Tall cards print at the same shape as the preview, centered. */
+  .print-only .print-card.vertical {
+    width: var(--card-w) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .print-card * {
+    transition: none !important;
+  }
+}

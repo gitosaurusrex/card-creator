@@ -1,4 +1,6 @@
-// Shared helpers: an in-memory /api backend and sign-in for the Clerk stub.
+// Shared helpers: an in-memory /api backend, sign-in for the Clerk stub and
+// locators for the parts of the UI most tests touch.
+import { expect } from '@playwright/test';
 
 /**
  * Mocks /api/* with an in-memory store keyed by bearer token.
@@ -14,6 +16,8 @@ export async function mockApi(page, { db = {}, conflictIds = [] } = {}) {
     uploadResponse: { status: 200, json: { url: '/api/image?id=test-image', success: true } },
     saves() { return this.requests.filter(r => r.method === 'POST' && r.path === '/api/projects'); },
     deletes() { return this.requests.filter(r => r.method === 'DELETE'); },
+    uploads() { return this.requests.filter(r => r.path === '/api/upload'); },
+    lastSaved() { return this.saves().at(-1)?.body; },
   };
 
   await page.route('**/api/**', async (route) => {
@@ -54,14 +58,20 @@ export async function mockApi(page, { db = {}, conflictIds = [] } = {}) {
   return api;
 }
 
-/** Loads the app as `user` with clean storage (optionally pre-seeded). */
-export async function signIn(page, user, { storage = {} } = {}) {
+export const tourSeenKey = (user) => `cardcreator:tour-seen:${user}`;
+
+/**
+ * Loads the app as `user` with clean storage (optionally pre-seeded).
+ * The guided tour is marked as seen unless `tourSeen: false` is passed.
+ */
+export async function signIn(page, user, { storage = {}, tourSeen = true } = {}) {
   await page.goto('/');
-  await page.evaluate(({ user, storage }) => {
+  await page.evaluate(({ user, storage, tourKey }) => {
     localStorage.clear();
+    if (tourKey) localStorage.setItem(tourKey, 'true');
     for (const [key, value] of Object.entries(storage)) localStorage.setItem(key, value);
     localStorage.setItem('__test_user', user);
-  }, { user, storage });
+  }, { user, storage, tourKey: tourSeen ? tourSeenKey(user) : null });
   await page.reload();
 }
 
@@ -72,11 +82,56 @@ export const project = (id, name, cards, lastModified = '2026-01-01T00:00:00.000
   lastModified,
 });
 
-export const titleInput = (page) => page.locator('input[placeholder="Card title..."]');
+// ---- Home screen ---------------------------------------------------------
 
+export const newProjectButton = (page) => page.getByRole('button', { name: 'Start a new project' });
+
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** The button that opens a project (its name starts with the project name). */
+export const projectButton = (page, name) =>
+  page.getByRole('button', { name: new RegExp(`^${escapeRegExp(name)}`) });
+
+export const deleteProjectButton = (page, name) => page.getByRole('button', { name: `Delete ${name}`, exact: true });
+
+export const confirmDeleteDialog = (page) => page.getByRole('dialog', { name: 'Delete this project?' });
+
+// ---- Editor --------------------------------------------------------------
+
+export const titleInput = (page) => page.getByLabel('Title', { exact: true });
+export const projectNameInput = (page) => page.getByLabel('Project name', { exact: true });
+/** The save indicator in the top bar ("All saved", "Saving soon…", "Saving…", "Not saved yet"). */
+export const saveStatus = (page) =>
+  page.getByRole('status').filter({ hasText: /^(All saved|Saving soon…|Saving…|Not saved yet)$/ });
+export const tab = (page, name) => page.getByRole('tab', { name, exact: true });
+// Scoped to the top bar: toasts have their own "Undo" button.
+export const undoButton = (page) => page.getByRole('banner').getByRole('button', { name: 'Undo', exact: true });
+export const redoButton = (page) => page.getByRole('banner').getByRole('button', { name: 'Redo', exact: true });
+
+export const cardStrip = (page) => page.getByRole('region', { name: 'Your cards' });
+/** Thumbnails in the card strip, one per card ("Card N: <title>"). */
+export const cardThumbs = (page) => cardStrip(page).getByRole('button', { name: /^Card \d+:/ });
+/** One thumbnail; its name may also carry the "Not printing" badge. */
+export const cardThumb = (page, n, title) =>
+  cardStrip(page).getByRole('button', { name: new RegExp(`^Card ${n}: ${escapeRegExp(title)}(\\s+Not printing)?$`) });
+export const stripButton = (page, name) => cardStrip(page).getByRole('button', { name, exact: true });
+// "Move earlier/later" are being renamed to "Move left/right"; accept both.
+export const moveEarlierButton = (page) => cardStrip(page).getByRole('button', { name: /^Move (earlier|left)$/ });
+export const moveLaterButton = (page) => cardStrip(page).getByRole('button', { name: /^Move (later|right)$/ });
+
+/** Asserts the strip shows exactly these card titles, in order. */
+export async function expectCardOrder(page, titles) {
+  await expect(cardThumbs(page)).toHaveCount(titles.length);
+  for (const [i, title] of titles.entries()) await expect(cardThumb(page, i + 1, title)).toBeVisible();
+}
+
+/** The big preview of the active card (a landmark labelled "Card preview"). */
+export const preview = (page) => page.getByLabel('Card preview', { exact: true });
+
+/** Leaves the editor ("My projects"), which flushes pending saves. */
 export async function closeProject(page) {
-  page.once('dialog', d => d.accept());
-  await page.getByRole('button', { name: 'Close' }).click();
+  await page.getByRole('button', { name: 'My projects' }).click();
+  await expect(newProjectButton(page)).toBeVisible();
 }
 
 /** Simulates the tab being hidden (the browser fires this before unload). */
@@ -89,3 +144,6 @@ export async function hideTab(page) {
 
 export const unsyncedIds = (page, user) =>
   page.evaluate(u => JSON.parse(localStorage.getItem(`tilemaker_projects_v2:${u}:unsynced`) || '[]'), user);
+
+export const cachedProjects = (page, user) =>
+  page.evaluate(u => JSON.parse(localStorage.getItem(`tilemaker_projects_v2:${u}`) || 'null'), user);
