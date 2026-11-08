@@ -43,7 +43,11 @@ npm run lint
 npm run build
 npm run test:api   # node:test, Postgres and Clerk mocked
 npm run test:e2e   # Playwright; starts `vite --mode e2e` (Clerk swapped for tests/e2e/clerk-stub.jsx)
+node scripts/screenshots.mjs   # refreshes the README images in docs/screenshots/ (demo data)
 ```
+
+[docs/technical.md](docs/technical.md) is the longer tour of how it all works: rendering and
+printing, saving and syncing, accounts, the API and pictures. Keep it current along with the README.
 
 CI (`.github/workflows/ci.yml`) runs lint, build and both test suites on every
 pull request and on pushes to `main`. All of them should pass before merging.
