@@ -1,11 +1,42 @@
 # Card Creator
 
-Card Creator helps kids make bright, colorful cards for a school project board.
-Type a title and a few facts, add a picture, pick a look, then print the cards,
-cut them out and stick them on the board. It's friendlier than pasting plain
-printouts, and simple enough to use without a grown-up hovering nearby.
+**Bright, colorful cards for school project boards, made by kids, ready to print.**
+
+Card Creator helps kids make cards for a school project board. Type a title and a few facts, add a picture, pick a
+look, then print the cards, cut them out and stick them on the board. It's friendlier than pasting plain printouts,
+and simple enough to use without a grown-up hovering nearby.
+
+[![CI](https://github.com/gitosaurusrex/card-creator/actions/workflows/ci.yml/badge.svg)](https://github.com/gitosaurusrex/card-creator/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+![React 19](https://img.shields.io/badge/React-19-58c4dc)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fgitosaurusrex%2Fcard-creator)
+
+![The Card Creator editor: a "What is a volcano?" card with a picture, the Words tab on the left, and the project's other cards in a strip below](docs/screenshots/editor.webp)
+
+## Why kids (and grown-ups) like it
+
+- **Made for kids.** Big buttons, plain words and a one-line hint on every control. A short animated demo shows the
+  idea, and **Show me how** walks through the editor step by step.
+- **One click to look great.** Twelve ready-made looks, from Sunshine and Ocean to Chalkboard and Night sky. Then
+  change any color, border, corner or font.
+- **What you see is what prints.** The preview is the printout, down to where each line of text wraps, and every card
+  shows its size on paper (for example 19 × 14 cm).
+- **You can't break anything.** Every change saves by itself, and Undo goes back step by step.
+- **Pictures that fit.** Add a photo or drawing, choose which side it goes on, add a label, and pick which part of it
+  shows.
+- **Safe with pictures and accounts.** Each child's projects belong to their own account. Uploads are checked to be
+  real images before they're stored.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/looks.webp" alt="The Colors tab: twelve one-click looks such as Sunshine, Ocean, Leafy and Chalkboard, applied to a red-eyed tree frog card"></td>
+    <td width="50%"><img src="docs/screenshots/print.webp" alt="The print dialog: three space cards ticked, each with its printed size, and a Print 3 cards button"></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/home.webp" alt="The home screen: a corkboard showing how it works, and a grid of projects called Volcanoes, Rainforest Animals, Our Solar System and Weather Watch"></td>
+  </tr>
+</table>
 
 ## What you can do
 
@@ -58,17 +89,6 @@ npm ci
 npm run dev
 ```
 
-## How it's built
-
-- React 19 and Vite 7, plain CSS with design tokens, Lucide icons
-- Clerk for sign-in
-- Vercel Functions (Node 24) with Postgres for saving projects and pictures
-
-The card styles live in `src/styles/card.css` and are kept separate from the
-app's own styles, so a card looks the same in the editor, in thumbnails and on
-paper. A wide card is 718 px across: the printable width of an A4 page with
-10 mm margins.
-
 ## Tests
 
 ```bash
@@ -82,10 +102,32 @@ stub (`tests/e2e/clerk-stub.jsx`), so no Clerk account or database is needed.
 Run `npx playwright install chromium` once before the first run. CI runs all of
 these on every pull request.
 
+The screenshots in this README come from `node scripts/screenshots.mjs`, which
+uses the same test mode with made-up projects.
+
 ## Working on it
 
 [AGENTS.md](AGENTS.md) explains how the code fits together, the rules that keep
 printing and saved projects working, and the list of outstanding work.
+
+## Under the hood (TL;DR)
+
+- React 19 and Vite 7, plain CSS with design tokens, Lucide icons. Clerk for sign-in. Vercel Functions (Node 24) with
+  Postgres for saving projects and pictures.
+- One component draws every card, in the editor, in thumbnails and on paper, so they always match. Card styles live
+  in `src/styles/card.css`, separate from the app's own styles.
+- A wide card is **718 px** across: the printable width of an A4 page with 10 mm margins. That's why screen and paper
+  wrap text identically.
+- Edits save 1.5 seconds after you stop, and straight away when you leave. A copy goes into the browser first, so
+  nothing is lost if the internet drops out, and saves never overtake each other.
+- Uploads are checked by their actual bytes (PNG, JPEG, GIF or WebP), never by what the browser claims.
+
+For the full tour (card fields, the renderer, printing, undo, saving and syncing, accounts, the API, pictures, the
+database and a code map) read **[docs/technical.md](docs/technical.md)**.
+
+## License
+
+[MIT](LICENSE). Use it, change it, run your own copy, share it. Just keep the copyright notice.
 
 ---
 Made by [gitosaurusrex](https://github.com/gitosaurusrex).
